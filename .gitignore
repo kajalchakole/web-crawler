@@ -1,2 +1,4 @@
 node_modules/
 .env
+crawledBlogs*.json
+package-lock.json
