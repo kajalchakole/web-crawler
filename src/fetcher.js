@@ -9,6 +9,6 @@ export async function fetchHtml(url) {
         return response.data;
     } catch (error) {
         console.error(`Error fetching ${url}: ${error.message}`);
-        return null;d
+        return null;
     }
 }
