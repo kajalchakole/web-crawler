@@ -1,23 +1,27 @@
 import { fetchHtml } from "./src/fetcher.js";
 import { parseHtml, parseBlogPage } from "./src/parser.js";
-import { saveDataToFile } from "./src/storage.js";
 import { delay } from "./src/utils.js";
 import { logger } from './src/logger.js';
 import { connectToDatabase } from './src/db.js';
 import { Blog } from './src/models/Blog.js'
+import { fetchRobotsTxt, isUrlAllowed, getCrawlDelay } from './src/robot.js';
+
 import mongoose from 'mongoose';
-
 import pLimit from 'p-limit';
-
 import "dotenv/config";
 
 (async () => {
+    console.time('With Concurrency');
+    
+    const domain = 'https://growthlist.co';
+    const robots = await fetchRobotsTxt(domain);
+    const crawlDelay = getCrawlDelay(robots, '*');
+    
+    logger.info(`Crawl Delay: ${crawlDelay} seconds`);
+    
     const url = 'https://growthlist.co/tech-blogs/';
     logger.info(`Crawling ${url}...`);
-    console.time('With Concurrency');
-    process.report.writeReport('./reports/my-report.json');
-console.log('Diagnostic report written!');
-
+    
     try {
         await connectToDatabase();
     } catch (error) {
@@ -31,11 +35,15 @@ console.log('Diagnostic report written!');
         logger.info(`Extracted ${blogURLs.length} BlogURLs: ${JSON.stringify(blogURLs)}`);
 
         const limit = pLimit(process.env.CONCURRENCY || 5);
-        const delayMs = process.env.DELAY_MS || 500;    // 500ms delay between requests
 
         const blogDataPromises = blogURLs.map((blogURL) => 
             limit(async () => {
-                await delay(delayMs);
+                if(!isUrlAllowed(robots, blogURL)) {
+                    logger.warn(`Skipping disallowed URL: ${blogURL}`);
+                    return null;
+                }
+                
+                await delay(crawlDelay * 1000);
                 const blogHtml = await fetchHtml(blogURL);
                 
                 if (blogHtml) {
