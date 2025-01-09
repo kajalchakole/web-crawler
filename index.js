@@ -1,99 +1,70 @@
+import { Worker } from 'worker_threads';
 import { fetchHtml } from "./src/fetcher.js";
-import { parseHtml, parseBlogPage } from "./src/parser.js";
-import { delay } from "./src/utils.js";
+import { parseHtml } from "./src/parser.js";
 import { logger } from './src/logger.js';
-import { connectToDatabase } from './src/db.js';
-import { Blog } from './src/models/Blog.js'
-import { fetchRobotsTxt, isUrlAllowed, getCrawlDelay } from './src/robot.js';
+import { fetchRobotsTxt, getCrawlDelay } from './src/robot.js';
 
-import mongoose from 'mongoose';
-import pLimit from 'p-limit';
 import "dotenv/config";
+
+const runWorker = (workerData) => {
+    return new Promise((resolve, reject) => {
+        const worker = new Worker('./src/worker.js', { workerData });
+        worker.on('message', resolve);
+        worker.on('error', reject);
+        worker.on('exit', (code) => {
+            if(code !== 0){
+                reject(new Error(`Worker stopped with exit code ${code}`));
+            }
+        });
+    });
+};
 
 (async () => {
     console.time('With Concurrency');
-    
+
     const domain = 'https://growthlist.co';
     const robots = await fetchRobotsTxt(domain);
     const crawlDelay = getCrawlDelay(robots, '*');
-    
+
     logger.info(`Crawl Delay: ${crawlDelay} seconds`);
-    
+
     const url = 'https://growthlist.co/tech-blogs/';
     logger.info(`Crawling ${url}...`);
-    
-    try {
-        await connectToDatabase();
-    } catch (error) {
-        logger.error(`Database connection failed: ${error.message}`);
-        process.exit(1); // Exit the process on critical failure
-    }
+
 
     const html = await fetchHtml(url);
-    if(html) {
-        const blogURLs = parseHtml(html);
-        logger.info(`Extracted ${blogURLs.length} BlogURLs: ${JSON.stringify(blogURLs)}`);
 
-        const limit = pLimit(process.env.CONCURRENCY || 5);
+    if (!html) {
+        logger.error(`Failed to fetch the base URL: ${baseURL}`);
+        return;
+    }
 
-        const blogDataPromises = blogURLs.map((blogURL) => 
-            limit(async () => {
-                if(!isUrlAllowed(robots, blogURL)) {
-                    logger.warn(`Skipping disallowed URL: ${blogURL}`);
-                    return null;
-                }
-                
-                await delay(crawlDelay * 1000);
-                const blogHtml = await fetchHtml(blogURL);
-                
-                if (blogHtml) {
-                    const parsedData = parseBlogPage(blogHtml);
-                    return { url:blogURL, ...parsedData }; // Include blog URL and HTML content
-                } else {
-                    logger.error(`Failed to fetch ${blogURL}`);
-                    return null; // Return null for failed fetches
-                }
-            })
-        );
-        const blogData = (await Promise.all(blogDataPromises)).filter(data => data);
-        logger.info('Blog Data to Save:', blogData);
+    const blogURLs = parseHtml(html);
+    // logger.info(`Extracted ${blogURLs.length} BlogURLs: ${JSON.stringify(blogURLs)}`);
 
-        for (const blog of blogData) {
-            try {
-                await Blog.updateOne(
-                    { url: blog.url },
-                    blog,
-                    { upsert: true }
-                );
-                logger.info(`Data saved for ${blog.url}`);
-            } catch (error) {
-                logger.error(`Error saving data for ${blog.url}: ${error.message}`);
-            }
-        }
-        console.log(`Data saved for ${blogData.length} URLs in DataBase`);        
-        const failedURLs = blogURLs.length - blogData.length;
-        logger.info(`Total URLs: ${blogURLs.length}, Processed: ${blogData.length}, Failed: ${failedURLs}`);
+    const numWorkers = Math.min(blogURLs.length, 4);
+    const chunkSize = Math.ceil(blogURLs.length / numWorkers);
+    const urlChunks = [];
 
+    for (let i = 0; i < blogURLs.length; i += chunkSize) {
+        urlChunks.push(blogURLs.slice(i, i + chunkSize));
+    }
+
+    logger.info(`Distributing ${blogURLs.length} URLs across ${numWorkers} workers...`);
+
+    const workerPromises = urlChunks.map((chunk, index) => runWorker( { urls: chunk, robotsData: robots, workerId: index+1 } ));
+
+    try {
+        const results = await Promise.all(workerPromises);
+        logger.info('All workers completed successfully');
+        console.log(`Crawled Data: ${JSON.stringify(results.flat(), null, 2)}`);
+        
+    } catch (error) {
+        logger.error(`Error in worker: ${error.message}`);
+    }finally {
+        logger.info('Database connection closed.');
         console.timeEnd('With Concurrency');
-    }else{
-        logger.info(`Failed to crawl ${url}`);        
-    }  
-    
-    gracefulShutdown("SIGINT");
-
+        process.exit(0);
+    }
 })();
 
-const gracefulShutdown = async (signal) => {
-    logger.info(`Received ${signal}. Closing database connection...`);
-    try {
-        await mongoose.connection.close();
-        logger.info('Database connection closed');
-        process.exit(0);
-    } catch (error) {
-        logger.error(`Error closing database connection: ${error.message}`);
-        process.exit(1);
-    }
-};
-
-process.on('SIGINT', gracefulShutdown);
-process.on('SIGTERM', gracefulShutdown);
