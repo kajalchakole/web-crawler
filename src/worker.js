@@ -5,7 +5,6 @@ import { Blog } from './models/Blog.js';
 import { isConnectionReady, connectToDatabase, gracefulShutdown } from './db.js';
 import { logger } from './logger.js';
 import { isUrlAllowed } from './robot.js';
-import { retry } from './utils.js';
 
 const loadWhyIsNodeRunning = async () => {
     const { default: whyIsNodeRunning } = await import('why-is-node-running');
@@ -61,7 +60,7 @@ process.on('unhandledRejection', (reason, promise) => {
                         logger.error(`Worker ${workerId}: MongoDB is not connected. Skipping update operation.`);
                         continue;
                     }
-                    await Blog.updateOne({ url }, { url, ...parsedData }, { upsert: true });
+                        await Blog.updateOne({ url }, { url, ...parsedData }, { upsert: true });
                 }
             } catch (error) {
                 logger.error(`Worker ${workerId}: Error processing URL ${url}: ${error.message}`);

@@ -10,7 +10,7 @@ export const connectToDatabase = async () => {
             connectTimeoutMS: 30000, // 30 seconds
         });
         // mongoose.set('debug', true);
-        logger.info('Connected to MongoDB locally');
+        logger.info('Connected to MongoDB');
     } catch (error) {
         logger.error('Error connecting to MongoDB:', error.message);
         process.exit(1);

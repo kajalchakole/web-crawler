@@ -1,5 +1,7 @@
 import { Kafka } from "kafkajs";
 import dotenv from 'dotenv';
+import { fetchHtml } from "./src/fetcher.js";
+import { parseHtml } from "./src/parser.js";
 dotenv.config();
 
 const kafka = new Kafka({
@@ -10,29 +12,35 @@ const kafka = new Kafka({
 const producer = kafka.producer();
 
 const run = async () => {
-    await producer.connect();
+    try {
+        await producer.connect();
 
-    const urls = [
-        'https://growthlist.co/tech-blogs/'
-    ];
+        const baseUrl = 'https://growthlist.co/tech-blogs/';
+        const html = await fetchHtml(baseUrl);
 
-    for (const url of urls) {
-        if (!url) {
-            console.error('Skipping undefined or null URL');
-            continue;
+
+        if (!html) {
+            console.error('Failed to fetch base URL');
+            return;
         }
-        console.log(`Sending URL: ${url}`);
+
+        const urls = parseHtml(html);
+        console.log(`Extracted ${urls.length} URLs`);
+
+
         await producer.send({
             topic: 'webcrawler-urls',
-            messages: [{ value: url }]
+            messages: urls.map(url => ({ value: url })),
         });
-        
-        console.log(`Added URL to webcrawler-urls topic: ${url}`);        
+        console.log(`Sent ${urls.length} URLs to Kafka`);
+
+    } catch (error) {
+        console.error(`Error in producer: ${error.message}`);
+    } finally {
+        await producer.disconnect();
+        console.log('Producer disconnected');
     }
 
-    await producer.disconnect();
-    console.log('Producer disconnected');
-    
 };
 
-run().catch(console.error);
+run();
