@@ -1,8 +1,10 @@
 import { Kafka } from "kafkajs";
+import dotenv from 'dotenv';
+dotenv.config();
 
 const kafka = new Kafka({
     clientId: 'webcrawler-producer',
-    brokers: ['localhost:9092']
+    brokers: [`${process.env.KAFKA_BROKER_IP}:${process.env.KAFKA_BROKER_PORT}`],
 });
 
 const producer = kafka.producer();
