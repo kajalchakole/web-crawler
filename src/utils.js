@@ -1,3 +1,5 @@
+import crypto from "crypto";
+
 export const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
 export const retry = async (fn, retries = 3, delayMs = 1000) => {
@@ -17,3 +19,7 @@ export const retry = async (fn, retries = 3, delayMs = 1000) => {
         }
     }
 };
+
+export const generateHash = (content) => {
+    return crypto.createHash('sha256').update(content).digest('hex');
+}
