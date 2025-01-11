@@ -33,7 +33,7 @@ const run = async () => {
         console.log('Consumer is ready and listening for messages...');
 
         await consumer.run({
-            eachMessage: async ({ topic, partition, message }) => {
+            eachMessage: async ({ message }) => {
                 const url = message.value.toString();
                 console.log(`Processing URL: ${url}`);
 
@@ -45,14 +45,11 @@ const run = async () => {
                     await Blog.updateOne({ url }, { url, ...parsedData }, { upsert: true });
                     console.log(`Saved data for URL: ${url}`);
                 }
-
             }
         });
     } catch (error) {
         console.error(`Error in consumer: ${error.message}`);
     }
-
-
 };
 
 run();

@@ -1,11 +1,14 @@
 import * as cheerio from 'cheerio';
 
 export function parseHtml(html) {
+    if (!html) {
+        return null;
+    }
     const $ = cheerio.load(html);
     const blogURLs = [];
     $('a').each((index, element) => {
         const url = $(element).attr('href');
-        if(url){
+        if (url) {
             blogURLs.push(url);
         }
     });
@@ -13,6 +16,9 @@ export function parseHtml(html) {
 }
 
 export const parseBlogPage = (html) => {
+    if (!html) {
+        return null;
+    }
     const $ = cheerio.load(html);
     const title = $('meta[property="og:title"]').attr('content') || $('title').text();
     const description = $('meta[name="description"]').attr('content') || '';
