@@ -8,7 +8,7 @@ export function parseHtml(html) {
     const blogURLs = [];
     $('a').each((index, element) => {
         const url = $(element).attr('href');
-        if (url) {
+        if (url && url.startsWith('http')) {
             blogURLs.push(url);
         }
     });
