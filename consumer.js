@@ -2,7 +2,7 @@ import { Kafka } from "kafkajs";
 import dotenv from 'dotenv';
 import { connectToDatabase } from "./src/db.js";
 import { parseBlogPage } from "./src/parser.js";
-import { Blog } from './models/Blog.js';
+import { Blog } from './src/models/Blog.js';
 import { fetchHtml } from "./src/fetcher.js";
 
 dotenv.config();
