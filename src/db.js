@@ -3,12 +3,7 @@ import { logger } from './logger.js';
 
 export const connectToDatabase = async () => {
     try {
-        await mongoose.connect(process.env.MONGO_URI, {
-            useNewUrlParser: true,
-            useUnifiedTopology: true,
-            socketTimeoutMS: 30000, // 30 seconds
-            connectTimeoutMS: 30000, // 30 seconds
-        });
+        await mongoose.connect(process.env.MONGO_URI);
         // mongoose.set('debug', true);
         logger.info('Connected to MongoDB');
     } catch (error) {

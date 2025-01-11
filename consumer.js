@@ -4,6 +4,7 @@ import { connectToDatabase } from "./src/db.js";
 import { parseBlogPage } from "./src/parser.js";
 import { Blog } from './src/models/Blog.js';
 import { fetchHtml } from "./src/fetcher.js";
+import { generateHash } from "./src/utils.js";
 
 dotenv.config();
 
@@ -41,9 +42,15 @@ const run = async () => {
                 console.log(`Fetched HTML for URL: ${url}`);
                 const parsedData = parseBlogPage(html);
                 console.log(`Parsed data for URL: ${url}`);
-                if (parsedData) {
-                    await Blog.updateOne({ url }, { url, ...parsedData }, { upsert: true });
+                const contentHash = generateHash(parsedData);
+                console.log(`Hash ${contentHash}`);
+                const existingHash = await Blog.findOne({ hash: contentHash });
+                console.log(`existing hash ${existingHash}`);
+                if (!existingHash) {
+                    await Blog.updateOne({ url }, { url, ...parsedData, hash: contentHash }, { upsert: true });
                     console.log(`Saved data for URL: ${url}`);
+                }else {
+                    console.log(`Duplicate content found for URL: ${url}. Skipping save.`);
                 }
             }
         });

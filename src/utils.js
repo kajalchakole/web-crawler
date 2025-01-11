@@ -20,6 +20,11 @@ export const retry = async (fn, retries = 3, delayMs = 1000) => {
     }
 };
 
-export const generateHash = (content) => {
-    return crypto.createHash('sha256').update(content).digest('hex');
-}
+
+export const generateHash = (data) => {
+    if (typeof data !== 'string') {
+        // Convert objects to JSON strings
+        data = JSON.stringify(data);
+    }
+    return crypto.createHash('sha256').update(data).digest('hex');
+};

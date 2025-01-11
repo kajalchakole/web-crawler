@@ -22,6 +22,7 @@
     "node-cron": "^3.0.3",
     "p-limit": "^6.2.0",
     "redis": "^4.7.0",
+    "redis-cli": "^2.1.2",
     "robots-parser": "^3.0.1",
     "winston": "^3.17.0"
   },

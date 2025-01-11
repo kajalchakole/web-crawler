@@ -1,8 +1,10 @@
 import axios from 'axios';
 import { retry } from "./utils.js";
 import { Redis } from "ioredis";
+import dotenv from 'dotenv';
 
-const redis = new Redis();
+dotenv.config();
+
 
 export async function fetchHtml(url) {
     try {
@@ -16,6 +18,11 @@ export async function fetchHtml(url) {
 }
 
 export const isUrlProcessed = async (url) => {
+    const redis = new Redis({
+        host:process.env.REDIS_IP,
+        port: process.env.REDIS_PORT
+    });
+    
     const exists = await redis.sismember('processed_urls', url);
     if(!exists) {
         await redis.sadd('processed_urls', url);
