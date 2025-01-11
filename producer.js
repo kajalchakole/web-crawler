@@ -1,6 +1,6 @@
 import { Kafka } from "kafkajs";
 import dotenv from 'dotenv';
-import { fetchHtml } from "./src/fetcher.js";
+import { fetchHtml, isUrlProcessed } from "./src/fetcher.js";
 import { parseHtml } from "./src/parser.js";
 dotenv.config();
 
@@ -10,6 +10,7 @@ const kafka = new Kafka({
 });
 
 const producer = kafka.producer();
+let totalUrls = 0;
 
 const run = async () => {
     try {
@@ -26,19 +27,28 @@ const run = async () => {
 
         const urls = parseHtml(html);
         console.log(`Extracted ${urls.length} URLs`);
+        for (const url of urls) {
+            if(await isUrlProcessed(url)) {
+                console.log(`Skipping already processed URL: ${url}`);
+                continue;
+            }
 
+            await producer.send({
+                topic: 'webcrawler-urls',
+                messages: [{ value: url }],
+            });
+            totalUrls++;
+            console.log(`Sent ${url} to Kafka`);
+        }
 
-        await producer.send({
-            topic: 'webcrawler-urls',
-            messages: urls.map(url => ({ value: url })),
-        });
-        console.log(`Sent ${urls.length} URLs to Kafka`);
+        console.log(`Sent ${totalUrls} URLs to Kafka`);
 
     } catch (error) {
         console.error(`Error in producer: ${error.message}`);
     } finally {
         await producer.disconnect();
         console.log('Producer disconnected');
+        process.exit(0);
     }
 
 };

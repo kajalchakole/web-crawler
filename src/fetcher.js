@@ -1,6 +1,8 @@
 import axios from 'axios';
 import { retry } from "./utils.js";
+import { Redis } from "ioredis";
 
+const redis = new Redis();
 
 export async function fetchHtml(url) {
     try {
@@ -12,3 +14,12 @@ export async function fetchHtml(url) {
         return null;
     }
 }
+
+export const isUrlProcessed = async (url) => {
+    const exists = await redis.sismember('processed_urls', url);
+    if(!exists) {
+        await redis.sadd('processed_urls', url);
+        return false;
+    }
+    return true;
+};
